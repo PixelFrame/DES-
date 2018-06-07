@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Pixel Frame Dev.
 #include "stdafx.h"
 #include "DES_Main.h"
 #include "DES_LookUp.h"
@@ -42,6 +43,39 @@ QWORD DES_Main::encrypt(QWORD m, QWORD key) {
 	}
 	QWORD R16L16 = ((QWORD)R << 32) | (QWORD)L;
 	QWORD RES = DES_LookUp::IP_T_Swap(R16L16);
+	return RES;
+}
+
+QWORD DES_Main::decrypt(QWORD c, QWORD key) {
+	QWORD L16R16 = DES_LookUp::IP_Swap(c);
+	DWORD L = L16R16;
+	DWORD R = L16R16 >> 32;
+	QWORD T = DES_LookUp::PC1_Swap(key);
+	DWORD C = (T & 0xFFFFFFF000000000) >> 32;
+	DWORD D = (T & 0x0000000FFFFFFF00) >> 4;
+	short shiftTable[] =
+	{
+		1, 1, 2, 2,
+		2, 2, 2, 2,
+		1, 2, 2, 2,
+		2, 2, 2, 1
+	};
+	std::vector<QWORD> K;
+	for (int round = 0; round < 16; ++round)
+	{
+		C = rsl28(C, shiftTable[round]);
+		D = rsl28(D, shiftTable[round]);
+		T = ((QWORD)(C & 0xFFFFFFF0) << 32) | ((QWORD)D << 4);
+		K.push_back(DES_LookUp::PC2_Swap(T));
+	}
+	for (int round = 15; round >= 0; --round)
+	{
+		DWORD temp = R;
+		R = L; 
+		L = DES_LookUp::P_Swap(DES_LookUp::S_Box_Swap(DES_LookUp::Expand_R(R) ^ K[round])) ^ temp;
+	}
+	QWORD L0R0 = ((QWORD)L << 32) | (QWORD)R;
+	QWORD RES = DES_LookUp::IP_T_Swap(L0R0);
 	return RES;
 }
 
@@ -146,49 +180,56 @@ std::vector<QWORD> DES_Main::encryptHex(CString text, QWORD key, int mode, QWORD
 std::vector<QWORD> DES_Main::encryptANSI(CString text, QWORD key, int mode, QWORD VECTOR)
 {
 	std::vector<QWORD> cipher;
+	int len = WideCharToMultiByte(CP_REGION, 0, text, -1, NULL, 0, NULL, FALSE) - 1;
+	char *buf = new char[len + 1];
+	memset(buf, 0, len+1);
+	WideCharToMultiByte(CP_REGION, 0, text, -1, buf, len, NULL, FALSE);
 	int part;
 	switch (mode)
 	{
 	case MODE_ECB:
-		part = enLength(text, 8);
+		part = len % 8 == 0 ? (len / 8) : (len / 8 + 1);
 		for (int i = 0; i < part; ++i)
 		{
-			CString token = text.Mid(i * 8, 8);
-			cipher.push_back(encrypt(DES_Convert::CSW2ANSI(token), key));
+			char token[9];
+			strncpy_s(token, buf + 8 * i, 8);
+			cipher.push_back(encrypt(DES_Convert::CHAR2ANSI(token), key));
 		}
 		break;
 	case MODE_CBC:
-		part = enLength(text, 8);
+		part = len % 8 == 0 ? (len / 8) : (len / 8 + 1);
 		for (int i = 0; i < part; ++i)
 		{
-			CString token = text.Mid(i * 8, 8);
-			QWORD tokenQ = DES_Convert::CSW2ANSI(token) ^ VECTOR;
+			char token[9];
+			strncpy_s(token, buf + 8 * i, 8);
+			QWORD tokenQ = DES_Convert::CHAR2ANSI(token) ^ VECTOR;
 			VECTOR = encrypt(tokenQ, key);
 			cipher.push_back(VECTOR);
 		}
 		break;
 	case MODE_CFB:
-		part = enLength(text, 1);
+		part = len % 1 == 0 ? (len / 1) : (len / 1 + 1);
 		for (int i = 0; i < part; ++i)
 		{
 			QWORD enc = encrypt(VECTOR, key);
-			CString token = text.Mid(i * 1, 1);
-			QWORD ci = (enc ^ DES_Convert::CSW2ANSI(token)) >> 56;
+			QWORD ci = ((enc >> 56) ^ (QWORD)buf[i]);
 			VECTOR = (VECTOR << 8) ^ ci;
 			cipher.push_back(ci);
 		}
 		break;
 	case MODE_OFB:
-		part = enLength(text, 8);
+		part = len % 8 == 0 ? (len / 8) : (len / 8 + 1);
 		for (int i = 0; i < part; ++i)
 		{
 			VECTOR = encrypt(VECTOR, key);
-			CString token = text.Mid(i * 8, 8);
-			QWORD ci = VECTOR ^ DES_Convert::CSW2ANSI(token);
+			char token[9];
+			strncpy_s(token, buf + 8 * i, 8);
+			QWORD ci = VECTOR ^ DES_Convert::CHAR2ANSI(token);
 			cipher.push_back(ci);
 		}
 		break;
 	}
+	delete[]buf;
 	return cipher;
 }
 
@@ -322,6 +363,54 @@ std::vector<QWORD> DES_Main::encryptFile(CString strFile, QWORD key, int mode, Q
 	return cipher;
 }
 
+std::vector<QWORD> DES_Main::decryptHex(CString text, QWORD key, int mode, QWORD VECTOR)
+{
+	std::vector<QWORD> ptext;
+	int part;
+	switch (mode)
+	{
+	case MODE_ECB:
+		part = enLength(text, 16);
+		for (int i = 0; i < part; ++i)
+		{
+			CString token = text.Mid(i * 16, 16);
+			ptext.push_back(decrypt(DES_Convert::CSW2HEX(token), key));
+		}
+		break;
+	case MODE_CBC:
+		part = enLength(text, 16);
+		for (int i = 0; i < part; ++i)
+		{
+			QWORD token = DES_Convert::CSW2HEX(text.Mid(i * 16, 16));
+			QWORD p = decrypt(token, key) ^ VECTOR;
+			VECTOR = token;
+			ptext.push_back(p);
+		}
+		break;
+	case MODE_CFB:
+		part = enLength(text, 2);
+		for (int i = 0; i < part; ++i)
+		{
+			QWORD enc = encrypt(VECTOR, key);
+			QWORD token = DES_Convert::CSW2HEX(text.Mid(i * 2, 2));
+			QWORD pi = (enc ^ token) >> 56;
+			VECTOR = (VECTOR << 8) ^ (token >> 56);
+			ptext.push_back(pi);
+		}
+		break;
+	case MODE_OFB:
+		part = enLength(text, 16);
+		for (int i = 0; i < part; ++i)
+		{
+			VECTOR = encrypt(VECTOR, key);
+			CString token = text.Mid(i * 16, 16);
+			QWORD pi = VECTOR ^ DES_Convert::CSW2HEX(token);
+			ptext.push_back(pi);
+		}
+		break;
+	}
+	return ptext;
+}
 
 DWORD DES_Main::rsl28(DWORD CD, short shift)
 {

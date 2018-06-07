@@ -187,6 +187,7 @@
     <ClInclude Include="CEditRes.h" />
     <ClInclude Include="DES++.h" />
     <ClInclude Include="DES++Dlg.h" />
+    <ClInclude Include="DES_Base64.h" />
     <ClInclude Include="DES_Convert.h" />
     <ClInclude Include="DES_LookUp.h" />
     <ClInclude Include="DES_Main.h" />
@@ -198,6 +199,7 @@
     <ClCompile Include="CEditRes.cpp" />
     <ClCompile Include="DES++.cpp" />
     <ClCompile Include="DES++Dlg.cpp" />
+    <ClCompile Include="DES_Base64.cpp" />
     <ClCompile Include="DES_Convert.cpp" />
     <ClCompile Include="DES_LookUp.cpp" />
     <ClCompile Include="DES_Main.cpp" />

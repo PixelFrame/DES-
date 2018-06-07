@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Pixel Frame Dev.
 #pragma once
 class DES_LookUp
 {

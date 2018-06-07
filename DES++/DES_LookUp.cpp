@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Pixel Frame Dev.
 #include "stdafx.h"
 #include "DES_LookUp.h"
 

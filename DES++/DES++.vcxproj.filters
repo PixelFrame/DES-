@@ -42,6 +42,9 @@
     <ClInclude Include="CEditRes.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DES_Base64.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DES++.cpp">
@@ -63,6 +66,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="CEditRes.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DES_Base64.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

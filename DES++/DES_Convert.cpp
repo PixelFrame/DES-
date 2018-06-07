@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Pixel Frame Dev.
 #include "stdafx.h"
 #include "DES_Convert.h"
 
@@ -48,15 +49,28 @@ QWORD DES_Convert::CSW2HEX(CString str)
 QWORD DES_Convert::CSW2ANSI(CString str)
 {
 	QWORD output = 0;
-	int len = WideCharToMultiByte(CP_ACP, 0, str, -1, NULL, 0, NULL, FALSE);
+	int len = WideCharToMultiByte(CP_REGION, 0, str, -1, NULL, 0, NULL, FALSE);
 	char *buf = new char[len + 1];
 	memset(buf, 0, len);
-	int nRet = WideCharToMultiByte(CP_OEMCP, 0, str, -1, buf, len, NULL, FALSE);
+	int nRet = WideCharToMultiByte(CP_REGION, 0, str, -1, buf, len, NULL, FALSE);
 	for (int i = 0; i < len - 1; ++i)
 	{
-		output ^= (QWORD)str[i] << ((7 - i) * 8);
+		QWORD token = (QWORD)buf[i] & 0xFF;
+		output ^= token << ((7 - i) * 8);
 	}
 	delete[]buf;
+	return output;
+}
+
+QWORD DES_Convert::CHAR2ANSI(char* str)
+{
+	QWORD output = 0;
+	int len = 8;
+	for (int i = 0; i < len; ++i)
+	{
+		QWORD token = (QWORD)str[i] & 0xFF;
+		output ^= token << ((7 - i) * 8);
+	}
 	return output;
 }
 
